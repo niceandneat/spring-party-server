@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Test</title>
+  </head>
+  <body>
+
+    <div id="statusContainer">
+      <p id="status"></p>
+    </div>
+
+    <div id="signInContainer">
+      <input id="id" type="text" name="id">
+      <input id="password" type="password" name="password">
+      <button onclick="establishSession()">Sign in</button>
+      <button onclick="creatUser()">Sign up</button>
+    </div>
+
+    <div id="userContainer" style="display: none">
+      <button id ="matchButton" onclick="findMatch(2, false)">Find match</button>
+    </div>
+
+    <div id="matchInfoContainer" style="display: none"></div>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/cli-test.js"></script>
+  </body>
+</html>
