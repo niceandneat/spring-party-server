@@ -5,17 +5,13 @@ let url = require("url");
 let path = require("path");
 let mysql = require("mysql");
 
+let setting = require("./setting")
 let RoomList = require("./RoomList").RoomList;
 let UserList = require("./UserList").UserList;
 let queryHandler = require("./queryHandler");
 let updateHandler = require("./updateHandler");
 
-let db = mysql.createConnection({
-  host     : "localhost",
-  user     : "root",
-  password : "ehdrjs0309",
-  database : "spring_party"
-});
+let db = mysql.createConnection(setting.db);
 
 app.listen(8080);
 db.connect();
@@ -46,7 +42,7 @@ function onRequest(req, res) {
     pathname = "/test.html";
   }
 
-  fs.readFile("../test" + pathname, function (err, data) {
+  fs.readFile("./test" + pathname, function (err, data) {
 
     if (err) {
       console.log(err);
@@ -97,6 +93,8 @@ io.on("connection", function (socket) {
       if (room) userData.roomData = {id: room.id, players: room.connectedPlayers()};
 
       socket.emit("restore session", userData);
+
+      console.log("user <%s> restored", user.id);
 
     } else {
 

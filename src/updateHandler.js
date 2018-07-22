@@ -79,6 +79,9 @@ function signIn(results, connnectionData) {
           success: true,
           userId: connnectionData.data.id
         });
+
+        console.log("user <%s> connected", connnectionData.data.id);
+        
         return;
 
       } else {
