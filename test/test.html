@@ -20,10 +20,16 @@
     </div>
 
     <div id="userContainer" style="display: none">
-      <button id ="matchButton" onclick="findMatch(2, false)">Find match</button>
+      <button onclick="findMatch(2, false)">2 SOLO</button>
+      <button onclick="findMatch(4, false)">4 SOLO</button>
+      <button onclick="findMatch(4, true)">4 TEAM</button>
+      <div id="userStatusContainer"></div>
     </div>
 
-    <div id="matchInfoContainer" style="display: none"></div>
+    <div id="matchContainer" style="display: none">
+      <div id="matchStatusContainer"></div>
+      <button id ="matchCancelButton" onclick="cancelFindingMatch()">Cancel finding</button>
+    </div>
     
     <script src="/socket.io/socket.io.js"></script>
     <script src="/cli-test.js"></script>

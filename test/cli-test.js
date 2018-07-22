@@ -6,23 +6,31 @@ let idInput = document.getElementById("id");
 let passwordInput = document.getElementById("password");
 let status = document.getElementById("status");
 let userContainer = document.getElementById("userContainer");
-let matchButton = document.getElementById("matchButton");
-let matchInfoContainer = document.getElementById("matchInfoContainer");
+let userStatusContainer = document.getElementById("userStatusContainer");
+let matchContainer = document.getElementById("matchContainer");
+let matchStatusContainer = document.getElementById("matchStatusContainer");
+let matchCancelButton = document.getElementById("matchCancelButton");
 
-// user id in database
-let userInfo = {};
+// object to save current user info
+let userInfo = { status: "idle" };
 
-status.innerHTML = "서버 접속됨";
+// connection check
+socket ? status.innerHTML = "서버연결됨" : status.innerHTML = "서버닫힘";
 
 // session check
-if (sessionStorage.sessionId) {
+if (sessionStorage.userId) {
   socket.emit("restore session", {
-    userSessionId: sessionStorage.sessionId
+    userId: sessionStorage.userId
   });
 }
 
 // sign up response
 socket.on("creat user", (data) => {
+
+  /**
+   * success : bool
+   * error : error content
+   */
 
   if (data.success) {
     status.innerHTML = "ID: " + idInput.value + " 가입 완료";
@@ -39,10 +47,16 @@ socket.on("creat user", (data) => {
 // sign in response
 socket.on("establish session", (data) => {
 
+  /**
+   * success : bool
+   * error : error content
+   * userId : user id who requested
+   */
+
   if (data.success) {
 
     // make new session
-    sessionStorage.sessionId = data.sessionId;
+    sessionStorage.userId = data.userId;
 
     status.innerHTML = idInput.value + " 로그인 완료";
     idInput.value = "";
@@ -50,9 +64,8 @@ socket.on("establish session", (data) => {
 
     // make userInfo based on data
     userInfo = {
-      userId: data.userId,
-      userSessionId: data.sessionId,
-      userStatus: "ready"
+      id: data.userId,
+      status: "ready"
     };
 
     fetchUser();
@@ -71,16 +84,19 @@ socket.on("establish session", (data) => {
 // load database response
 socket.on("fetch user", (data) => {
 
+  /**
+   * success : bool
+   * error : error content
+   * userData : requested user data
+   */
+
   if (data.success) {
 
-    let keys = Object.keys(data.userData);
+    createDataHTML(data.userData, userStatusContainer);
 
-    for (let i = 1; i < keys.length; i++) {
-      let para = document.createElement("p");
-      let docu = document.createTextNode(keys[i] + " : " + data.userData[keys[i]]);
-      para.appendChild(docu);
-      userContainer.appendChild(para);
-    }
+    signInContainer.style.display = "none";
+    userContainer.style.display = "block";
+    matchContainer.style.display = "none";
 
   }
 
@@ -89,19 +105,34 @@ socket.on("fetch user", (data) => {
 // find match reponse
 socket.on("find match", (data) => {
 
+  /**
+   * success : bool
+   * roomData : {id, players}
+   */
+
+
   if (data.success) {
-    matchInfoContainer.innerHTML = "";
 
-    let keys = Object.keys(data.roomData);
-    console.log(data.roomData);
+    userInfo.status = "play"
 
-    for (let i = 0; i < keys.length; i++) {
-      let para = document.createElement("p");
-      let docu = document.createTextNode(keys[i] + " : " + data.roomData[keys[i]]);
-      para.appendChild(docu);
-      matchInfoContainer.appendChild(para);
-    }
+    createDataHTML(data.roomData, userStatusContainer);
+
+    matchCancelButton.style.display = "none"
+
   }
+
+});
+
+// cancel find match reponse
+socket.on("cancel finding", (data) => {
+
+  /**
+   * success : bool
+   */
+
+  userInfo.status = "ready"
+
+  fetchUser();
 
 });
 
@@ -120,7 +151,8 @@ function creatUser() {
   }
   socket.emit("creat user", {
     id: idContent,
-    password: passwordContent
+    password: passwordContent,
+    userStatus: userInfo.status
   });
 }
 
@@ -130,9 +162,18 @@ function establishSession() {
   let idContent = idInput.value;
   let passwordContent = passwordInput.value;
 
+  if (!idContent) {
+    idInput.style.borderColor = "tomato";
+    return
+  } else if (!passwordContent) {
+    passwordInput.style.borderColor = "tomato";
+    return
+  }
+
   socket.emit("establish session", {
     id: idContent,
-    password: passwordContent
+    password: passwordContent,
+    userStatus: userInfo.status
   });
 }
 
@@ -140,40 +181,11 @@ function establishSession() {
 function fetchUser() {
   
   socket.emit("fetch user", {
-    userId: userInfo.userId
+    userId: userInfo.id,
+    userStatus: userInfo.status
   });
 
-  signInContainer.style.display = "none";
-  userContainer.style.display = "block";
-
 }
-
-// match find request
-function findMatch(counts, team) {
-
-  socket.emit("find match", {
-    userId: userInfo.userId,
-    userStatus: userInfo.userStatus,
-    playerCounts: counts,
-    isTeam: team
-  });
-
-  // change user status to 'wait'
-  userInfo.userStatus = "wait";
-
-  userContainer.style.display = "none";
-  matchInfoContainer.style.display = "block";
-
-  let para = document.createElement("p");
-  let docu = document.createTextNode("매치 찾는중...");
-  para.appendChild(docu);
-  matchInfoContainer.appendChild(para);
-
-}
-
-/*
-
-// just in case
 
 // update database request
 function updateUser() {
@@ -185,10 +197,69 @@ function updateUser() {
   }
 
   socket.emit("update user", {
-    userId: userInfo.userId,
+    userId: userInfo.id,
+    userStatus: userInfo.status,
     contents: update
   });
 }
+
+// match find request
+function findMatch(counts, team) {
+
+  socket.emit("find match", {
+    userId: userInfo.id,
+    userStatus: userInfo.status,
+    playerCounts: counts,
+    isTeam: team
+  });
+
+  // change user status to 'wait'
+  userInfo.status = "wait";
+
+  // change UI
+  matchStatusContainer.innerHTML = "";
+
+  let para = document.createElement("p");
+  let docu = document.createTextNode("매치 찾는중...");
+  para.appendChild(docu);
+  matchStatusContainer.appendChild(para);
+
+  signInContainer.style.display = "none";
+  userContainer.style.display = "none";
+  matchContainer.style.display = "block";
+  matchCancelButton.style.display = "inline"
+
+}
+
+// cancel finding request
+function cancelFindingMatch() {
+
+  socket.emit("cancel finding", {
+    userId: userInfo.id,
+    userStatus: userInfo.status
+  });
+
+}
+
+// display data
+function createDataHTML(data, parentElement) {
+  console.log(data);
+
+  parentElement.innerHTML = "";
+
+  let keys = Object.keys(data);
+
+  for (let i = 0; i < keys.length; i++) {
+    let para = document.createElement("p");
+    let docu = document.createTextNode(keys[i] + " : " + data[keys[i]]);
+    para.appendChild(docu);
+    parentElement.appendChild(para);
+  }
+}
+
+/**
+
+// just in case
 
 // increment level (test function)
 function levelUp() {

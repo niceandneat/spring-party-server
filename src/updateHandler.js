@@ -1,16 +1,15 @@
 let mysql = require("mysql");
 
 let queryHandler = require("./queryHandler");
-let session = require("./session");
 
-function signUp(userList, connnectionData) {
+function signUp(results, connnectionData) {
 
   // same id check
-  for (let user of userList) {
-    if (user.user_id === connnectionData.data.id) {
+  for (let result of results) {
+    if (result.user_id === connnectionData.data.id) {
       connnectionData.socket.emit("creat user", {
-        error: "same id",
-        success: false
+        success: false,
+        error: "same id"
       });
       return
     }
@@ -48,38 +47,38 @@ function signUp(userList, connnectionData) {
 
 }
 
-function signIn(userList, connnectionData) {
+function signIn(results, connnectionData) {
   
   // id & password check
-  for (let user of userList) {
-    if (user.user_id === connnectionData.data.id) {
-      if (user.password === connnectionData.data.password) {
+  for (let result of results) {
+    if (result.user_id === connnectionData.data.id) {
+      if (result.password === connnectionData.data.password) {
 
-        // make session
-        session.add(user.user_id);
+        // register user in users(user list)
+        connnectionData.users.register(
+          connnectionData.data.id, connnectionData.data.status, connnectionData.socket.id);
 
         // update last_login in database
         queryHandler.updateQuery(connnectionData, {
           table: "user", 
           contents: {last_login: mysql.raw("NOW()")}, 
-          condition: "id = " + user.id
+          condition: "id = " + result.id
         });
 
         // send sign in complete
         connnectionData.socket.emit("establish session", {
           success: true,
-          userId: user.user_id,
-          sessionId: session.getSession(user.user_id)
+          userId: connnectionData.data.id
         });
-
         return;
 
       } else {
+
         connnectionData.socket.emit("establish session", {
           success: false,
           error: "wrong password"
         });
-        return
+        return;
       }
     }
   }
@@ -92,12 +91,12 @@ function signIn(userList, connnectionData) {
 
 }
 
-function sendUserData(userData, connnectionData) {
+function sendUserData(result, connnectionData) {
   
-  if (userData) {
+  if (result) {
     connnectionData.socket.emit("fetch user", {
       success: true,
-      userData: userData[0]
+      userData: result[0]
     });
   } else {
     connnectionData.socket.emit("fetch user", {
