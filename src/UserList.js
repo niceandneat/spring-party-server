@@ -23,7 +23,7 @@ class UserList {
   }
 
   exists(userId) {
-    return this.roomIdMap.has(userId);
+    return this.userIdMap.has(userId);
   }
 
   getById(userId) {

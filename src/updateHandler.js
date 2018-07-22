@@ -54,9 +54,18 @@ function signIn(results, connnectionData) {
     if (result.user_id === connnectionData.data.id) {
       if (result.password === connnectionData.data.password) {
 
+        // double sign in check
+        if (connnectionData.users.exists(connnectionData.data.id)) {
+          connnectionData.socket.emit("establish session", {
+            success: false,
+            error: "already signed"
+          });
+          return;
+        }
+
         // register user in users(user list)
         connnectionData.users.register(
-          connnectionData.data.id, connnectionData.data.status, connnectionData.socket.id);
+          connnectionData.data.id, "ready", connnectionData.socket.id);
 
         // update last_login in database
         queryHandler.updateQuery(connnectionData, {

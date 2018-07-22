@@ -28,10 +28,13 @@ let users = new UserList();
 
 // user math find queue
 let waitingQueues = {
-  soloFour: [],
   soloTwo: [],
+  soloFour: [],
   teamFour: []
 }
+
+// set timeout
+var RECONNECT_TIMEOUT = 5;
 
 // url handler
 function onRequest(req, res) {
@@ -73,19 +76,36 @@ io.on("connection", function (socket) {
   // session check
   socket.on("restore session", (data) => {
 
+    if (data.userStatus != "idle") return;
+
     if (users.exists(data.userId)) {
 
-      socket.emit("restore session", {
+      // find user with client session user id
+      let user = users.getById(data.userId);
+
+      // conduct user restore process
+      user.unsetTimer();
+      user.socketId = socket.id;
+
+      let userData = {
         success: true,
-        userId: users.getById(data.userId)
+        userId: user.id,
+        userStatus: user.status
+      };
+
+      let room = rooms.getById(user.playingRoomId);
+      if (room) userData.roomData = {id: room.id, players: room.connectedPlayers()};
+
+      socket.emit("restore session", userData);
+
+    } else {
+
+      socket.emit("restore session", {
+        success: false,
+        error: "connection expired"
       });
 
     }
-
-    socket.emit("restore session", {
-      success: false,
-      error: "connection expired"
-    });
 
   });
   
@@ -233,7 +253,9 @@ io.on("connection", function (socket) {
 
     // add to waiting queue
     currentQueue.push(users.getById(data.userId));
-    console.log(waitingQueues);
+
+    // change user status
+    users.getById(data.userId).status = "wait";
 
     if (currentQueue.length === data.playerCounts) {
       
@@ -242,11 +264,14 @@ io.on("connection", function (socket) {
       console.log("<%s> room created for:", room.id);
 
       // push players in room's player list
-      let queueLength = currentQueue.length
+      let queueLength = currentQueue.length;
+
       for (let i = 0; i < queueLength; i++) {
         let player = currentQueue.shift();
         room.players.push(player);
-        console.log(player.userId);
+        player.playingRoomId = room.id;
+        player.status = "play";
+        console.log(player.id);
       }
 
       // send success massage
@@ -254,7 +279,7 @@ io.on("connection", function (socket) {
         success: true,
         roomData: {
           id: room.id,
-          players: room.players
+          players: room.connectedPlayers()
         }
       });
 
@@ -276,6 +301,9 @@ io.on("connection", function (socket) {
 
     console.log("cancel request for finding match from <%s>", data.userId);
 
+    // change user status
+    users.getById(data.userId).status = "ready";
+
     // delete user from queue
     let keys = Object.keys(waitingQueues);
 
@@ -294,10 +322,64 @@ io.on("connection", function (socket) {
 
   socket.on("disconnect", () => {
 
-    console.log("Connection to socket <%s> disconnected", socket.id);
+    console.log("socket <%s> disconnected", socket.id);
 
+    // disconnected user
+    let user = users.getBySocketId(socket.id);
+    if (!user) return;
 
+    // delete socketId from user
+    user.socketId = "";
+    console.log("user <%s> disconnected", user.id);
 
+    // if user is finding match
+    if (user.status === "wait") {
+
+      // delete user from queue
+      let keys = Object.keys(waitingQueues);
+
+      for (let i = 0; i < keys.length; i++) {
+        let index = waitingQueues[keys[i]].indexOf(user);
+        if (index != -1) {
+          waitingQueues[keys[i]].splice(index, 1);
+        }
+      }
+
+      // change user status
+      user.status = "ready";
+
+    }
+
+    let room = rooms.getById(user.playingRoomId);
+
+    user.setTimer(RECONNECT_TIMEOUT, () => {
+
+      if (room) {
+
+        room.broadcast(io, "user disconnected", {
+          userId: user.id,
+          roomData: {
+            id: room.id,
+            players: room.connectedPlayers()
+          }
+        });
+
+      }
+
+      users.remove(user.id);
+
+    });
+
+  });
+
+  // for Debug
+  socket.on("view server status", () => {
+    console.log("\nusers          ******************************");
+    console.log(users);
+    console.log("\nrooms          ******************************");
+    console.log(rooms);
+    console.log("\nwaitingQueues  ******************************");
+    console.log(waitingQueues);
   });
 
 });

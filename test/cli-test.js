@@ -19,10 +19,48 @@ socket ? status.innerHTML = "서버연결됨" : status.innerHTML = "서버닫힘
 
 // session check
 if (sessionStorage.userId) {
+  console.log("restore request " + userInfo.status);
   socket.emit("restore session", {
-    userId: sessionStorage.userId
+    userId: sessionStorage.userId,
+    userStatus: userInfo.status
   });
 }
+
+// session restore response
+socket.on("restore session", (data) => {
+
+  /**
+   * success : bool
+   * error : error content
+   * userId : user id
+   * userStatus : user status
+   * roomData : {id, players}
+   */
+
+  if (data.success) {
+
+    userInfo = {
+      id: data.userId,
+      status: data.userStatus
+    };
+
+    if (userInfo.status === "ready") {
+      fetchUser();
+    } else if (userInfo.status === "play" && data.roomData) {
+      createDataHTML({ roomId: data.roomData.id }, matchStatusContainer);
+      createDataHTML(data.roomData.players, matchStatusContainer, false);
+  
+      signInContainer.style.display = "none";
+      userContainer.style.display = "none";
+      matchContainer.style.display = "block";
+      matchCancelButton.style.display = "none";
+    }
+
+  }
+
+  console.log(data.error);
+
+});
 
 // sign up response
 socket.on("creat user", (data) => {
@@ -77,6 +115,10 @@ socket.on("establish session", (data) => {
     status.innerHTML = "아이디 없음";
     idInput.value = "";
     passwordInput.value = "";
+  } else if (data.error === "already signed") {
+    status.innerHTML = "이미 접속중";
+    idInput.value = "";
+    passwordInput.value = "";
   }
 
 });
@@ -113,9 +155,11 @@ socket.on("find match", (data) => {
 
   if (data.success) {
 
+    // change user status
     userInfo.status = "play"
 
-    createDataHTML(data.roomData, userStatusContainer);
+    createDataHTML({roomId: data.roomData.id}, matchStatusContainer);
+    createDataHTML(data.roomData.players, matchStatusContainer, false);
 
     matchCancelButton.style.display = "none"
 
@@ -130,9 +174,23 @@ socket.on("cancel finding", (data) => {
    * success : bool
    */
 
+  // change user status
   userInfo.status = "ready"
 
   fetchUser();
+
+});
+
+// user disconnection reponse
+socket.on("user disconnected", (data) => {
+
+  /**
+   * userId : disconnected user id
+   * roomData : {id, players}
+   */
+
+  createDataHTML({roomId: data.roomData.id}, matchStatusContainer);
+  createDataHTML(data.roomData.players, matchStatusContainer, false);
 
 });
 
@@ -175,6 +233,7 @@ function establishSession() {
     password: passwordContent,
     userStatus: userInfo.status
   });
+
 }
 
 // load database request
@@ -201,6 +260,7 @@ function updateUser() {
     userStatus: userInfo.status,
     contents: update
   });
+  
 }
 
 // match find request
@@ -227,7 +287,7 @@ function findMatch(counts, team) {
   signInContainer.style.display = "none";
   userContainer.style.display = "none";
   matchContainer.style.display = "block";
-  matchCancelButton.style.display = "inline"
+  matchCancelButton.style.display = "inline";
 
 }
 
@@ -242,19 +302,28 @@ function cancelFindingMatch() {
 }
 
 // display data
-function createDataHTML(data, parentElement) {
-  console.log(data);
+function createDataHTML(data, parentElement, clear = true) {
 
-  parentElement.innerHTML = "";
+  if (clear) parentElement.innerHTML = "";
 
   let keys = Object.keys(data);
 
   for (let i = 0; i < keys.length; i++) {
     let para = document.createElement("p");
-    let docu = document.createTextNode(keys[i] + " : " + data[keys[i]]);
+    let content = typeof data[keys[i]] == "object" && 
+      data[keys[i]] != null ?
+      data[keys[i]].id : data[keys[i]];
+    let docu = document.createTextNode(keys[i] + " : " + content);
     para.appendChild(docu);
     parentElement.appendChild(para);
   }
+
+}
+
+// for debug
+function viewServerStatus() {
+  console.log("debug");
+  socket.emit("view server status");
 }
 
 /**
