@@ -119,6 +119,10 @@ socket.on("establish session", (data) => {
     status.innerHTML = "이미 접속중";
     idInput.value = "";
     passwordInput.value = "";
+  } else if (data.error === "not enough accounts") {
+    status.innerHTML = "계정 부족";
+    idInput.value = "";
+    passwordInput.value = "";
   }
 
 });
@@ -215,7 +219,16 @@ function creatUser() {
 }
 
 // sign in request
-function establishSession() {
+function establishSession(isAuto = false) {
+
+  // auto sign in check
+  if (isAuto) {
+    socket.emit("establish session", {
+      userStatus: userInfo.status,
+      isAuto: isAuto
+    });
+    return;
+  }
 
   let idContent = idInput.value;
   let passwordContent = passwordInput.value;
@@ -231,7 +244,8 @@ function establishSession() {
   socket.emit("establish session", {
     id: idContent,
     password: passwordContent,
-    userStatus: userInfo.status
+    userStatus: userInfo.status,
+    isAuto: isAuto
   });
 
 }

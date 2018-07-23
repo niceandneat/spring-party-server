@@ -48,6 +48,48 @@ function signUp(results, connnectionData) {
 }
 
 function signIn(results, connnectionData) {
+
+  // auto sign in check
+  if (connnectionData.data.isAuto) {
+
+    let len = results.length;
+
+    // enough accounts check
+    if (len === connnectionData.users.userList.length) {
+      connnectionData.socket.emit("establish session", {
+        success: false,
+        error: "not enough accounts"
+      });
+      return;
+    }
+
+    let newUser;
+    do {
+      newUser = results[Math.min(Math.floor(len * Math.random()), len)];
+    } while (connnectionData.users.exists(newUser.user_id));
+    
+    // register user in users(user list)
+    connnectionData.users.register(
+      newUser.user_id, "ready", connnectionData.socket.id);
+
+    // update last_login in database
+    queryHandler.updateQuery(connnectionData, {
+      table: "user", 
+      contents: {last_login: mysql.raw("NOW()")}, 
+      condition: "id = " + newUser.id
+    });
+
+    // send sign in complete
+    connnectionData.socket.emit("establish session", {
+      success: true,
+      userId: newUser.user_id
+    });
+
+    console.log("user <%s> connected", newUser.user_id);
+    
+    return;
+
+  }
   
   // id & password check
   for (let result of results) {

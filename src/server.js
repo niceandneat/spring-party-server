@@ -143,6 +143,7 @@ io.on("connection", function (socket) {
      * id : id input
      * password : password input
      * userStatus : current user status
+     * isAuto : auto sign in bool
      */
 
     // check user status
