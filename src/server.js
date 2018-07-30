@@ -72,8 +72,6 @@ io.on("connection", function (socket) {
   // session check
   socket.on("restore session", (data) => {
 
-    if (data.userStatus != "idle") return;
-
     if (users.exists(data.userId)) {
 
       // find user with client session user id
@@ -85,8 +83,7 @@ io.on("connection", function (socket) {
 
       let userData = {
         success: true,
-        userId: user.id,
-        userStatus: user.status
+        userId: user.id
       };
 
       let room = rooms.getById(user.playingRoomId);
@@ -113,11 +110,7 @@ io.on("connection", function (socket) {
     /**
      * id : id input
      * password : password input
-     * userStatus : current user status
      */
-
-    // check user status
-    if (data.userStatus != "idle") return;
     
     let connnectionData = {
       socket: socket,
@@ -130,7 +123,7 @@ io.on("connection", function (socket) {
       table: "user",
       condition: null,
       contents: null
-    }
+    };
 
     queryHandler.selectQuery(connnectionData, queryData, updateHandler.signUp);
 
@@ -142,12 +135,8 @@ io.on("connection", function (socket) {
     /**
      * id : id input
      * password : password input
-     * userStatus : current user status
      * isAuto : auto sign in bool
      */
-
-    // check user status
-    if (data.userStatus != "idle") return;
 
     let connnectionData = {
       socket: socket,
@@ -160,7 +149,7 @@ io.on("connection", function (socket) {
       table: "user",
       condition: null,
       contents: null
-    }
+    };
 
     queryHandler.selectQuery(connnectionData, queryData, updateHandler.signIn);
 
@@ -171,11 +160,7 @@ io.on("connection", function (socket) {
 
     /**
      * userId : user who requested
-     * userStatus : current user status
      */
-
-    // check user status
-    if (data.userStatus === "idle") return;
 
     let connnectionData = {
       socket: socket,
@@ -188,7 +173,7 @@ io.on("connection", function (socket) {
       table: "user_gamedata",
       condition: "user_id = " + "'" + data.userId + "'",
       contents: null
-    }
+    };
 
     queryHandler.selectQuery(connnectionData, queryData, updateHandler.sendUserData);
 
@@ -199,12 +184,14 @@ io.on("connection", function (socket) {
 
     /**
      * userId : user who requested
-     * userStatus : current user status
      * contents : user data that need to be updated
      */
-
-    // check user status
-    if (data.userStatus === "idle") return;
+    
+    // check user validation
+    if (users.getById(data.userId).socketId != socket.id) {
+      console.log("Unverified request from <%s>", data.userId);
+      return;
+    }
 
     let connnectionData = {
       socket: socket,
@@ -217,7 +204,7 @@ io.on("connection", function (socket) {
       table: "user_gamedata",
       condition: "user_id = " + "'" + data.userId + "'",
       contents: data.contents
-    }
+    };
 
     queryHandler.updateQuery(connnectionData, queryData);
 
@@ -228,13 +215,12 @@ io.on("connection", function (socket) {
 
     /**
      * userId : user who requested
-     * userStatus : current user status
      * playerCounts : room player counts
      * isTeam : weather team match bool
      */
 
     // check user status
-    if (data.userStatus != "ready") return;
+    if (users.getById(data.userId).status != "ready") return;
 
     console.log("request for finding match from <%s>", data.userId);
 
@@ -290,13 +276,12 @@ io.on("connection", function (socket) {
 
     /**
      * userId : user who requested
-     * userStatus : current user status
      * playerCounts : room player counts
      * isTeam : weather team match bool
      */
 
     // check user status
-    if (data.userStatus != "wait") return;
+    if (users.getById(data.userId).status != "wait") return;
 
     console.log("cancel request for finding match from <%s>", data.userId);
 

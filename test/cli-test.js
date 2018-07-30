@@ -12,17 +12,15 @@ let matchStatusContainer = document.getElementById("matchStatusContainer");
 let matchCancelButton = document.getElementById("matchCancelButton");
 
 // object to save current user info
-let userInfo = { status: "idle" };
+let userInfo = {};
 
 // connection check
 socket ? status.innerHTML = "서버연결됨" : status.innerHTML = "서버닫힘";
 
 // session check
 if (sessionStorage.userId) {
-  console.log("restore request " + userInfo.status);
   socket.emit("restore session", {
-    userId: sessionStorage.userId,
-    userStatus: userInfo.status
+    userId: sessionStorage.userId
   });
 }
 
@@ -33,20 +31,16 @@ socket.on("restore session", (data) => {
    * success : bool
    * error : error content
    * userId : user id
-   * userStatus : user status
    * roomData : {id, players}
    */
 
   if (data.success) {
 
     userInfo = {
-      id: data.userId,
-      status: data.userStatus
+      id: data.userId
     };
 
-    if (userInfo.status === "ready") {
-      fetchUser();
-    } else if (userInfo.status === "play" && data.roomData) {
+    if (data.roomData) {
       createDataHTML({ roomId: data.roomData.id }, matchStatusContainer);
       createDataHTML(data.roomData.players, matchStatusContainer, false);
   
@@ -54,7 +48,9 @@ socket.on("restore session", (data) => {
       userContainer.style.display = "none";
       matchContainer.style.display = "block";
       matchCancelButton.style.display = "none";
-    }
+    } else {
+      fetchUser();
+    } 
 
   }
 
@@ -102,8 +98,7 @@ socket.on("establish session", (data) => {
 
     // make userInfo based on data
     userInfo = {
-      id: data.userId,
-      status: "ready"
+      id: data.userId
     };
 
     fetchUser();
@@ -159,9 +154,6 @@ socket.on("find match", (data) => {
 
   if (data.success) {
 
-    // change user status
-    userInfo.status = "play"
-
     createDataHTML({roomId: data.roomData.id}, matchStatusContainer);
     createDataHTML(data.roomData.players, matchStatusContainer, false);
 
@@ -177,9 +169,6 @@ socket.on("cancel finding", (data) => {
   /**
    * success : bool
    */
-
-  // change user status
-  userInfo.status = "ready"
 
   fetchUser();
 
@@ -213,8 +202,8 @@ function creatUser() {
   }
   socket.emit("creat user", {
     id: idContent,
-    password: passwordContent,
-    userStatus: userInfo.status
+    password: passwordContent
+    
   });
 }
 
@@ -224,7 +213,6 @@ function establishSession(isAuto = false) {
   // auto sign in check
   if (isAuto) {
     socket.emit("establish session", {
-      userStatus: userInfo.status,
       isAuto: isAuto
     });
     return;
@@ -244,7 +232,6 @@ function establishSession(isAuto = false) {
   socket.emit("establish session", {
     id: idContent,
     password: passwordContent,
-    userStatus: userInfo.status,
     isAuto: isAuto
   });
 
@@ -254,8 +241,7 @@ function establishSession(isAuto = false) {
 function fetchUser() {
   
   socket.emit("fetch user", {
-    userId: userInfo.id,
-    userStatus: userInfo.status
+    userId: userInfo.id
   });
 
 }
@@ -271,7 +257,6 @@ function updateUser() {
 
   socket.emit("update user", {
     userId: userInfo.id,
-    userStatus: userInfo.status,
     contents: update
   });
   
@@ -282,13 +267,9 @@ function findMatch(counts, team) {
 
   socket.emit("find match", {
     userId: userInfo.id,
-    userStatus: userInfo.status,
     playerCounts: counts,
     isTeam: team
   });
-
-  // change user status to 'wait'
-  userInfo.status = "wait";
 
   // change UI
   matchStatusContainer.innerHTML = "";
@@ -309,8 +290,7 @@ function findMatch(counts, team) {
 function cancelFindingMatch() {
 
   socket.emit("cancel finding", {
-    userId: userInfo.id,
-    userStatus: userInfo.status
+    userId: userInfo.id
   });
 
 }
