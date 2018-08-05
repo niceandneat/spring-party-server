@@ -1,15 +1,16 @@
-let hash = require("hash.js");
-let Room = require("./Room").Room;
+import crypto from "crypto";
 
-class RoomList {
+import Room from "./Room";
+
+export default class RoomList {
 
   constructor() {
     this.roomIdMap = new Map();
     this.roomList = [];
   }
 
-  create(counts, team) {
-    let room = new Room(this._generateUid(), counts, team);
+  create(counts, team, players) {
+    let room = new Room(this._generateUid(), counts, team, players);
     this.roomIdMap.set(room.id, room);
     this.roomList.push(room);
     return room;
@@ -33,13 +34,17 @@ class RoomList {
     return this.roomIdMap.get(roomId);
   }
 
+  update(deltaTime) {
+    for (let room of this.roomList) {
+      room.update(deltaTime);
+    }
+  }
+
   _generateUid() {
     let uid;
     do {
-      uid = hash.sha256().update(Math.random().toString(36)).digest("hex");
+      uid = crypto.createHash('sha512').update(Math.random().toString(36)).digest('hex');
     } while (this.roomIdMap.has(uid));
     return uid;
   }
 }
-
-exports.RoomList = RoomList;

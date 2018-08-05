@@ -4,13 +4,26 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "webpack",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "webpack-dev-server --hot --inline --host 0.0.0.0"
   },
   "author": "taekmin kwon",
   "license": "ISC",
   "dependencies": {
-    "hash.js": "^1.1.5",
+    "easystarjs": "^0.4.3",
     "mysql": "^2.15.0",
-    "socket.io": "^2.1.1"
+    "nick-generator": "^1.0.1",
+    "random-seed": "^0.3.0",
+    "socket.io": "^2.1.1",
+    "webpack-cli": "^3.1.0",
+    "webpack-node-externals": "^1.7.2"
+  },
+  "devDependencies": {
+    "babel-core": "^6.26.3",
+    "babel-loader": "^7.1.5",
+    "babel-preset-env": "^1.7.0",
+    "webpack": "^4.16.4",
+    "webpack-dev-server": "^3.1.5"
   }
 }

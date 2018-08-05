@@ -1,6 +1,6 @@
-let User = require("./User").User;
+import User from "./User";
 
-class UserList {
+export default class UserList {
 
   constructor() {
     this.userIdMap = new Map();

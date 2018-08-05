@@ -5,15 +5,18 @@ let url = require("url");
 let path = require("path");
 let mysql = require("mysql");
 
-let setting = require("./setting")
-let RoomList = require("./RoomList").RoomList;
-let UserList = require("./UserList").UserList;
-let queryHandler = require("./queryHandler");
-let updateHandler = require("./updateHandler");
+import Ticker from "./cli-core/Ticker"
+import setting from "./setting"
+import RoomList from "./RoomList";
+import UserList from "./UserList";
+import QueryHandler from "./QueryHandler";
+import UpdateHandler from "./UpdateHandler";
+
+console.log("Here");
 
 let db = mysql.createConnection(setting.db);
 
-app.listen(8080);
+app.listen(3000);
 db.connect();
 
 // game room list
@@ -22,12 +25,19 @@ let rooms = new RoomList();
 // game user list
 let users = new UserList();
 
-// user math find queue
+// user match find queue
 let waitingQueues = {
   soloTwo: [],
   soloFour: [],
   teamFour: []
 }
+
+// Timer for real-time update
+let ticker = new Ticker();
+ticker.start();
+ticker.add(() => {
+  update();
+});
 
 // set timeout
 var RECONNECT_TIMEOUT = 5;
@@ -39,10 +49,10 @@ function onRequest(req, res) {
   let ext = path.parse(pathname).ext;
 
   if (pathname == "/") {
-    pathname = "/test.html";
+    pathname = "/index.html";
   }
 
-  fs.readFile("./test" + pathname, function (err, data) {
+  fs.readFile(pathname, function (err, data) {
 
     if (err) {
       console.log(err);
@@ -62,6 +72,11 @@ function onRequest(req, res) {
     
   });
 
+}
+
+// update function
+function update() {
+  rooms.update(ticker.deltaTime);
 }
 
 io.on("connection", function (socket) {
@@ -125,7 +140,7 @@ io.on("connection", function (socket) {
       contents: null
     };
 
-    queryHandler.selectQuery(connnectionData, queryData, updateHandler.signUp);
+    QueryHandler.selectQuery(connnectionData, queryData, UpdateHandler.signUp);
 
   });
 
@@ -151,7 +166,7 @@ io.on("connection", function (socket) {
       contents: null
     };
 
-    queryHandler.selectQuery(connnectionData, queryData, updateHandler.signIn);
+    QueryHandler.selectQuery(connnectionData, queryData, UpdateHandler.signIn);
 
   });
 
@@ -175,7 +190,7 @@ io.on("connection", function (socket) {
       contents: null
     };
 
-    queryHandler.selectQuery(connnectionData, queryData, updateHandler.sendUserData);
+    QueryHandler.selectQuery(connnectionData, queryData, UpdateHandler.sendUserData);
 
   });
 
@@ -206,7 +221,7 @@ io.on("connection", function (socket) {
       contents: data.contents
     };
 
-    queryHandler.updateQuery(connnectionData, queryData);
+    QueryHandler.updateQuery(connnectionData, queryData);
 
   });
 
@@ -219,11 +234,44 @@ io.on("connection", function (socket) {
      * isTeam : weather team match bool
      */
 
+    let user = users.getById(data.userId);
+
     // check user status
-    if (users.getById(data.userId).status != "ready") return;
+    if (user.status != "ready") return;
 
     console.log("request for finding match from <%s>", data.userId);
 
+    // make new room in room list
+    let room = rooms.create(data.playerCounts, data.isTeam, [user]);
+    console.log("<%s> room created for: <%s>", room.id, user.id);
+
+    // enroll user in the room
+    user.playingRoomId = room.id;
+    user.status = "play";
+
+    // send success massage
+    let partyList = [];
+    for (let party of room.stage.parties) {
+      partyList.push({
+        id : party.id,
+        userId : party.userId,
+        territoryColor : party.territoryColor,
+        deckCode : party.deckCode,
+        isAi : party.false
+      });
+    }
+
+    room.broadcast(io, "find match", {
+      success: true,
+      roomData: {
+        id: room.id,
+        seed: room.seed,
+        players: room.players,
+        parties: partyList
+      }
+    });
+
+/* 
     // distinguish user's target game category
     let currentQueue;
     if (data.isTeam) {
@@ -237,10 +285,10 @@ io.on("connection", function (socket) {
     }
 
     // add to waiting queue
-    currentQueue.push(users.getById(data.userId));
+    currentQueue.push(user);
 
     // change user status
-    users.getById(data.userId).status = "wait";
+    user.status = "wait";
 
     if (currentQueue.length === data.playerCounts) {
       
@@ -268,7 +316,7 @@ io.on("connection", function (socket) {
         }
       });
 
-    }
+    } */
 
   });
 
@@ -354,6 +402,11 @@ io.on("connection", function (socket) {
 
     });
 
+  });
+
+  // change direction
+  socket.on("change direction", (data) => {
+    
   });
 
   // for Debug
