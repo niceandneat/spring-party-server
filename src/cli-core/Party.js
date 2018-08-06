@@ -1,3 +1,6 @@
+import nickGenerator from "nick-generator";
+
+import Connection from "../Connection"
 import Character from "./Character.js";
 import Configuration from "./Configuration.js";
 
@@ -7,9 +10,10 @@ export default class Party {
      * Party identifier
      */
     this.id = id;
-    this.userId = userId;
+    this.userId = userId ? userId : nickGenerator();
     this.territoryColor = territoryColor;
     this.isAi = false;
+    this.roomId = null;
 
     // Start coordinate
     this._startCoordinate = null;
@@ -22,6 +26,8 @@ export default class Party {
     this.head = null;
     this.members = [];
     this._eliminatedMembers = [];
+    this._scheduledCoordinate = {};
+
 
     // Party speed
     this._speed = 0;
@@ -256,6 +262,8 @@ export default class Party {
     this.head.targetPosition.y = position.y;
     this.head.x = position.x;
     this.head.y = position.y;
+    this._scheduledCoordinate.x = coordinate.x;
+    this._scheduledCoordinate.y = coordinate.y;
 
     this.head.jump = true;
 
@@ -275,9 +283,31 @@ export default class Party {
     this._haltCallback = callback;
   }
 
-  scheduleDirection(direction) {
+  scheduleDirection(direction, coordinate) {
     if (!this._halted) {
       this._scheduledDirection = direction;
+      if (coordinate) {
+
+        this._scheduledCoordinate.x = coordinate.x;
+        this._scheduledCoordinate.y = coordinate.y;
+        
+      } else {
+
+        this._scheduledCoordinate.x = this.head.coordinate.x;
+        this._scheduledCoordinate.y = this.head.coordinate.y;
+
+        Connection.rooms.getById(this.roomId).broadcast("change direction", {
+          pratyId: this.id,
+          direction: this._scheduledDirection,
+          coordinate: this._scheduledCoordinate
+        }, this.userId);
+
+        if (this.id == 1) {
+          console.log("direction: <%s> / coordinate: <%s>, <%s>", this._scheduledDirection, this._scheduledCoordinate.x, this._scheduledCoordinate.y);;
+        }
+        
+
+      }
     }
   }
 
@@ -309,7 +339,25 @@ export default class Party {
     ) {
       return;
     }
-    this._lastStep = this.head.coordinate.clone();
+
+    if (
+      this._scheduledCoordinate.x != this.head.coordinate.x || 
+      this._scheduledCoordinate.y != this.head.coordinate.y
+    ) {
+      if (this.id == 1) {
+        console.log(this.head.coordinate);
+        console.log("to");
+        console.log(this._scheduledCoordinate);
+      }
+      this.displace(this._scheduledCoordinate, this._scheduledDirection);
+      return;
+    }
+
+    if (this.id == 1) {
+      console.log(this._scheduledCoordinate);
+    }
+
+    this._lastStep = this._clone(this.head.coordinate);
 
     let position;
     for (let i = this.members.length - 1; i >= 0; i--) {
@@ -321,7 +369,7 @@ export default class Party {
             member.jump = true;
           }
           member.direction = this.members[i - 1].direction;
-          member.coordinate = this.members[i - 1].coordinate.clone();
+          member.coordinate = this._clone(this.members[i - 1].coordinate);
         }
       } else {
         position = this._translateCoordinate(this.head.coordinate);
@@ -365,6 +413,8 @@ export default class Party {
         member.coordinate.y++;
         break;
     }
+    this._scheduledCoordinate.x = member.coordinate.x;
+    this._scheduledCoordinate.y = member.coordinate.y;
   }
 
   _hasScheduledDirection() {
@@ -407,9 +457,19 @@ export default class Party {
     let ty =
       (coordinate.x * Configuration.isometric.unitHeight) / 2 +
       (coordinate.y * Configuration.isometric.unitHeight) / 2;
+
     return {
       x: tx,
       y: ty
     };
+  }
+
+  _clone(obj) {
+    let newObj = {};
+    let keys = Object.keys(obj);
+    for (let key of keys) {
+      newObj[key] = obj[key];
+    }
+    return newObj;
   }
 }

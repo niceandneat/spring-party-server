@@ -10,6 +10,7 @@ export default class Stage {
      * Metadata for stage
      */
     this.meta = stageData;
+    this.roomId = null;
 
     // Parties in this stage
     this._parties = [];

@@ -2,7 +2,7 @@ export default class Ticker {
   constructor () {
     
     this.targetFPMS = 0.06;
-    this.targetElapsedMS = 1 / this.targetFPMS;
+    this.targetElapsedMS = 16.66;
     this.deltaTime = 1;
     this.lastTime = -1;
     this.started = false;
@@ -24,7 +24,7 @@ export default class Ticker {
     if (this.currentTimer === null && !this.started) {
       this.started = true;
       this.lastTime = Date.now();
-      this.correntTimer = setTimeout(this._tick, this.targetElapsedMS);
+      this.currentTimer = setTimeout(() => this._tick(), this.targetElapsedMS);
     }
   }
 
@@ -43,11 +43,11 @@ export default class Ticker {
   }
 
   _tick() {
-    this.correntTimer = null;
+    this.currentTimer = null;
     if (this.started) {
-      this.update();
+      this._update();
       if (this.started && this.currentTimer === null) {
-        this.correntTimer = setTimeout(this._tick, this.targetElapsedMS);
+        this.currentTimer = setTimeout(() => this._tick(), this.targetElapsedMS);
       }
     }
   }
@@ -60,11 +60,13 @@ export default class Ticker {
       this.elapsedMS = currentTime - this.lastTime;
       this.deltaTime = this.elapsedMS * this.targetFPMS;
 
-      for (let fn of handlers) {
+      for (let fn of this.handlers) {
         fn(this.deltaTime);
       }
 
     }
+
+    this.lastTime = currentTime;
   }
 
 }

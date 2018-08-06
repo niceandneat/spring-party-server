@@ -1,29 +1,18 @@
-let app = require("http").createServer(onRequest);
-let io = require("socket.io")(app);
-let fs = require("fs");
-let url = require("url");
-let path = require("path");
-let mysql = require("mysql");
-
+import Connection from "./Connection"
 import Ticker from "./cli-core/Ticker"
-import setting from "./setting"
-import RoomList from "./RoomList";
-import UserList from "./UserList";
 import QueryHandler from "./QueryHandler";
 import UpdateHandler from "./UpdateHandler";
 
-console.log("Here");
-
-let db = mysql.createConnection(setting.db);
-
-app.listen(3000);
-db.connect();
+Connection.setup();
 
 // game room list
-let rooms = new RoomList();
+let rooms = Connection.rooms;
 
 // game user list
-let users = new UserList();
+let users = Connection.users;
+
+// socket connection
+let io = Connection.io;
 
 // user match find queue
 let waitingQueues = {
@@ -32,47 +21,15 @@ let waitingQueues = {
   teamFour: []
 }
 
+// set timeout
+// var RECONNECT_TIMEOUT = 5;
+
 // Timer for real-time update
 let ticker = new Ticker();
 ticker.start();
 ticker.add(() => {
   update();
 });
-
-// set timeout
-var RECONNECT_TIMEOUT = 5;
-
-// url handler
-function onRequest(req, res) {
-
-  let pathname = url.parse(req.url).pathname;
-  let ext = path.parse(pathname).ext;
-
-  if (pathname == "/") {
-    pathname = "/index.html";
-  }
-
-  fs.readFile(pathname, function (err, data) {
-
-    if (err) {
-      console.log(err);
-      res.writeHead(404, {"Content-Type": "text/html"});
-      res.write(err.toString());
-    } else if (ext == ".css") {
-      res.writeHead(200, {"Content-Type": "text/css"});
-      res.write(data);
-    } else if (ext == ".js") {
-      res.writeHead(200, {"Content-Type": "text/javascript"});
-      res.write(data);
-    } else {
-      res.writeHead(200, {"Content-Type": "text/html"});
-      res.write(data);
-    }
-    res.end();
-    
-  });
-
-}
 
 // update function
 function update() {
@@ -84,7 +41,7 @@ io.on("connection", function (socket) {
   // new socket
   console.log("Connection to socket <%s> established", socket.id);
 
-  // session check
+/*   // session check
   socket.on("restore session", (data) => {
 
     if (users.exists(data.userId)) {
@@ -117,7 +74,7 @@ io.on("connection", function (socket) {
 
     }
 
-  });
+  }); */
   
   // sign up
   socket.on("creat user", (data) => {
@@ -129,7 +86,7 @@ io.on("connection", function (socket) {
     
     let connnectionData = {
       socket: socket,
-      db: db,
+      db: Connection.db,
       users: users,
       data: data
     };
@@ -155,7 +112,7 @@ io.on("connection", function (socket) {
 
     let connnectionData = {
       socket: socket,
-      db: db,
+      db: Connection.db,
       users: users,
       data: data
     };
@@ -179,7 +136,7 @@ io.on("connection", function (socket) {
 
     let connnectionData = {
       socket: socket,
-      db: db,
+      db: Connection.db,
       users: users,
       data: data
     };
@@ -210,7 +167,7 @@ io.on("connection", function (socket) {
 
     let connnectionData = {
       socket: socket,
-      db: db,
+      db: Connection.db,
       users: users,
       data: data
     };
@@ -261,7 +218,7 @@ io.on("connection", function (socket) {
       });
     }
 
-    room.broadcast(io, "find match", {
+    room.broadcast("find match", {
       success: true,
       roomData: {
         id: room.id,
@@ -308,7 +265,7 @@ io.on("connection", function (socket) {
       }
 
       // send success massage
-      room.broadcast(io, "find match", {
+      room.broadcast("find match", {
         success: true,
         roomData: {
           id: room.id,
@@ -384,11 +341,25 @@ io.on("connection", function (socket) {
 
     let room = rooms.getById(user.playingRoomId);
 
-    user.setTimer(RECONNECT_TIMEOUT, () => {
+    if (room) {
+
+      room.broadcast("user disconnected", {
+        userId: user.id,
+        roomData: {
+          id: room.id,
+          players: room.connectedPlayers()
+        }
+      });
+
+    }
+
+    users.remove(user.id);
+
+/*     user.setTimer(RECONNECT_TIMEOUT, () => {
 
       if (room) {
 
-        room.broadcast(io, "user disconnected", {
+        room.broadcast("user disconnected", {
           userId: user.id,
           roomData: {
             id: room.id,
@@ -400,23 +371,28 @@ io.on("connection", function (socket) {
 
       users.remove(user.id);
 
-    });
+    }); */
 
   });
 
   // change direction
-  socket.on("change direction", (data) => {
-    
-  });
 
-  // for Debug
-  socket.on("view server status", () => {
-    console.log("\nusers          ******************************");
-    console.log(users);
-    console.log("\nrooms          ******************************");
-    console.log(rooms);
-    console.log("\nwaitingQueues  ******************************");
-    console.log(waitingQueues);
+  socket.on("change direction", (data) => {
+
+    /**
+     * roomId: roomId
+     * pratyId: partyId
+     * direction: direction
+     * coordinate: coordinate
+     */
+
+   for (let party of rooms.getById(data.roomId).stage.parties) {
+      if (party.id == data.pratyId) {
+        party.scheduleDirection(data.direction, data.coordinate);
+      }
+    }
+     
+    
   });
 
 });

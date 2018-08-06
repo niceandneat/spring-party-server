@@ -1,5 +1,6 @@
 import crypto from "crypto";
 
+import Connection from "./Connection";
 import Party from "./cli-core/Party.js";
 import Stage from "./cli-core/Stage.js";
 import StageData from "./cli-core/StageData.js";
@@ -14,7 +15,7 @@ export default class Room {
     this.id = id;
     this.playerCounts = counts;
     this.isTeamGame = team;
-    this.seed = crypto.randomBytes(16*16*2).toString('hex');
+    this.seed = crypto.randomBytes(16).toString('hex');
 
     this.players = players;
     this.aiPlayers = [];
@@ -26,11 +27,7 @@ export default class Room {
     // Create a stage
     this.stageData = new StageData(this.seed);
     this.stage = new Stage(this.stageData);
-
-    // Create ai players list
-    for (let i = 0; i < this.playerCounts - this.players.length; i++) {
-      this.aiPlayers.push(0);
-    }
+    this.stage.roomId = this.id;
 
     let idList = [1, 2, 3, 4];
     // let colorList = [0x008744, 0x0057e7, 0xd62d20, 0xffa700];
@@ -47,27 +44,32 @@ export default class Room {
         party.addMember(character);
       }
 
+      party.roomId = this.id;
+
       this.stage.addParty(party);
 
     }
 
     // Create ai parties
-    for (let aiPlayer of this.aiPlayers) {
+    for (let i = 0; i < this.playerCounts - this.players.length; i++) {
 
       let partyId = this._pickId(idList);
-      let party = new Party(aiPlayer.id, partyId, this._getColor(partyId));
+      let party = new Party("", partyId, this._getColor(partyId));
       let ai = new PartySimulator(party);
 
       ai.setEnvironment(this.stage.territory, this.stage.meta.obstacles);
       ai.onAction((direction, coord, tgt) => {
         party.scheduleDirection(direction);
       });
+      this.aiPlayers.push(ai);
 
       for (let i = 0; i < 3; i++) {
         let characterData = new CharacterData()
         let character = new Character(characterData);
         party.addMember(character);
       }
+
+      party.roomId = this.id;
 
       this.stage.addParty(party);
 
@@ -126,10 +128,10 @@ export default class Room {
     this.stage.update(deltaTime);
   }
 
-  broadcast(io, event, data) {
+  broadcast(event, data, notMeId = false) {
 
     for (let player of this.players) {
-      if (player.socketId) io.to(player.socketId).emit(event, data);
+      if (player.socketId && player.id != notMeId) Connection.io.to(player.socketId).emit(event, data);
     }
   
   }

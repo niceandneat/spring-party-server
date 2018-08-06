@@ -1,4 +1,4 @@
-import gen from 'random-seed'
+let gen = require("random-seed");
 
 export default class StageData {
   constructor(seed) {
@@ -6,11 +6,11 @@ export default class StageData {
       width: 16,
       height: 16
     };
-    let seed1 = seed.slice(0, seed.length / 2)
-    let seed2 = seed.slice(seed.length / 2)
+    this.seed = seed;
+    this.random = gen(this.seed);
     this.territory = this._generateEmptyTerritory();
-    this.terrain = this._generateTerrain(seed1);
-    this.obstacles = this._generateObstacles(seed2);
+    this.terrain = this._generateTerrain();
+    this.obstacles = this._generateObstacles();
   }
 
   _generateEmptyTerritory() {
@@ -37,30 +37,31 @@ export default class StageData {
     return territory;
   }
 
-  _generateTerrain(seed) {
-    let i = 0;
+  _generateTerrain() {
     let terrain = [];
     for (let y = 0; y < this.dimension.height; y++) {
       terrain[y] = [];
       for (let x = 0; x < this.dimension.width; x++) {
-        if (this.territory[y][x] > 0) continue;
-        terrain[y][x] = gen(seed[i]) > 0.9 ? -1 : gen(seed[i+1]) > 0.3 ? 0 : 1;
-        i = i + 2;
+        if (this.territory[y][x] > 0) {
+          terrain[y][x] = 0;
+          continue;
+        }
+        terrain[y][x] = this.random(100) > 90 ? -1 : this.random(100) > 30 ? 0 : 1;
       }
     }
     return terrain;
   }
 
   _generateObstacles(seed) {
-    let i = 0;
     let obstacles = [];
     for (let y = 0; y < this.dimension.height; y++) {
       obstacles[y] = [];
       for (let x = 0; x < this.dimension.width; x++) {
-        if (this.territory[y][x] || this.terrain[y][x] == -1) continue;
-        obstacles[y][x] =
-          gen(seed[i]) > 0.98 ? Math.floor(gen(seed[i+1]) * 10) : 0;
-        i = i + 2;
+        if (this.territory[y][x] || this.terrain[y][x] == -1) {
+          obstacles[y][x] = 0;
+          continue;
+        }
+        obstacles[y][x] = this.random(100) > 95 ? Math.floor(this.random(100) * 0.1) : 0;
       }
     }
     return obstacles;

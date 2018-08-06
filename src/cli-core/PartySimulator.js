@@ -1,10 +1,7 @@
 import EasyStar from "easystarjs";
-import nickGenerator from "nick-generator";
 
 export default class PartySimulator {
   constructor(party, territory, obstacles) {
-    // Profile
-    this.id = nickGenerator();
 
     // Basic data to evaluate
     this._party = party;
@@ -72,6 +69,8 @@ export default class PartySimulator {
       let curr = pcoord;
       let next = this._plannedPath[this._plannedPathIndex];
 
+      if (this._party.id == 1) console.log(curr.x, curr.y, next.x, next.y);
+
       let ndir = 0;
 
       if (next.x > curr.x) {
@@ -93,9 +92,10 @@ export default class PartySimulator {
         }
       }
       this._plannedPathIndex++;
-    }
-  }
 
+    }
+
+  }
   _planPath(startLimit, endLimit) {
     let currentStep = this._party.head.coordinate;
 

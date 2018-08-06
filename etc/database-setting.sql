@@ -49,11 +49,11 @@ CREATE TABLE `user_gamestat` (
 
 CREATE TABLE `gamelog` (
   `id` INT NOT NULL AUTO_INCREMENT,
-  `match_id` VARCHAR(50) NOT NULL UNIQUE,
+  `room_id` VARCHAR(50) NOT NULL UNIQUE,
   `rank` VARCHAR(200) NOT NULL,
   `seed` VARCHAR(50) NOT NULL,
   `reward` VARCHAR(50) NOT NULL,
-  `first_login` DATETIME,
-  `last_login` DATETIME,
+  `start_time` DATETIME,
+  `end_time` DATETIME,
   PRIMARY KEY (`id`)
 );
