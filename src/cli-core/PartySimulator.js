@@ -68,9 +68,7 @@ export default class PartySimulator {
 
       let curr = pcoord;
       let next = this._plannedPath[this._plannedPathIndex];
-
-      if (this._party.id == 1) console.log(curr.x, curr.y, next.x, next.y);
-
+      
       let ndir = 0;
 
       if (next.x > curr.x) {

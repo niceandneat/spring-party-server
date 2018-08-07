@@ -301,12 +301,7 @@ export default class Party {
           direction: this._scheduledDirection,
           coordinate: this._scheduledCoordinate
         }, this.userId);
-
-        if (this.id == 1) {
-          console.log("direction: <%s> / coordinate: <%s>, <%s>", this._scheduledDirection, this._scheduledCoordinate.x, this._scheduledCoordinate.y);;
-        }
         
-
       }
     }
   }
@@ -344,17 +339,8 @@ export default class Party {
       this._scheduledCoordinate.x != this.head.coordinate.x || 
       this._scheduledCoordinate.y != this.head.coordinate.y
     ) {
-      if (this.id == 1) {
-        console.log(this.head.coordinate);
-        console.log("to");
-        console.log(this._scheduledCoordinate);
-      }
       this.displace(this._scheduledCoordinate, this._scheduledDirection);
       return;
-    }
-
-    if (this.id == 1) {
-      console.log(this._scheduledCoordinate);
     }
 
     this._lastStep = this._clone(this.head.coordinate);

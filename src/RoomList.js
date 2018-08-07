@@ -43,7 +43,7 @@ export default class RoomList {
   _generateUid() {
     let uid;
     do {
-      uid = crypto.createHash('sha256').update(Math.random().toString(36)).digest('hex');
+      uid = crypto.createHash('sha256').update(Math.random().toString(36)).digest('hex').slice(0, 20);
     } while (this.roomIdMap.has(uid));
     return uid;
   }

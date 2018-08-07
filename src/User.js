@@ -5,7 +5,10 @@ export default class User {
     this.id = id;
     this.status = status;
     this.socketId = socketId;
-    this.deckCode = null;
+
+    this.partyCode = null;
+    this.partyId = null;
+    this.territoryColor = null;
 
     this.timer = null;
     this.playingRoomId = null;

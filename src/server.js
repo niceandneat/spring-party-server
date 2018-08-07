@@ -1,7 +1,9 @@
-import Connection from "./Connection"
-import Ticker from "./cli-core/Ticker"
+import mysql from "mysql";
+
+import Connection from "./Connection";
 import QueryHandler from "./QueryHandler";
 import UpdateHandler from "./UpdateHandler";
+
 
 Connection.setup();
 
@@ -24,57 +26,30 @@ let waitingQueues = {
 // set timeout
 // var RECONNECT_TIMEOUT = 5;
 
-// Timer for real-time update
-let ticker = new Ticker();
-ticker.start();
-ticker.add(() => {
-  update();
-});
+function conditionQueryString(column, value) {
+  return column + " = " + "'" + value + "'";
+}
 
-// update function
-function update() {
-  rooms.update(ticker.deltaTime);
+function shuffle(array) {
+  var currentIndex = array.length, temporaryValue, randomIndex;
+
+  while (currentIndex !== 0) {
+
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex -= 1;
+
+    temporaryValue = array[currentIndex];
+    array[currentIndex] = array[randomIndex];
+    array[randomIndex] = temporaryValue;
+  }
+
+  return array;
 }
 
 io.on("connection", function (socket) {
 
   // new socket
   console.log("Connection to socket <%s> established", socket.id);
-
-/*   // session check
-  socket.on("restore session", (data) => {
-
-    if (users.exists(data.userId)) {
-
-      // find user with client session user id
-      let user = users.getById(data.userId);
-
-      // conduct user restore process
-      user.unsetTimer();
-      user.socketId = socket.id;
-
-      let userData = {
-        success: true,
-        userId: user.id
-      };
-
-      let room = rooms.getById(user.playingRoomId);
-      if (room) userData.roomData = {id: room.id, players: room.connectedPlayers()};
-
-      socket.emit("restore session", userData);
-
-      console.log("user <%s> restored", user.id);
-
-    } else {
-
-      socket.emit("restore session", {
-        success: false,
-        error: "connection expired"
-      });
-
-    }
-
-  }); */
   
   // sign up
   socket.on("creat user", (data) => {
@@ -143,7 +118,7 @@ io.on("connection", function (socket) {
 
     let queryData = {
       table: "user_gamedata",
-      condition: "user_id = " + "'" + data.userId + "'",
+      condition: conditionQueryString("user_id", data.userId),
       contents: null
     };
 
@@ -174,7 +149,7 @@ io.on("connection", function (socket) {
 
     let queryData = {
       table: "user_gamedata",
-      condition: "user_id = " + "'" + data.userId + "'",
+      condition: conditionQueryString("user_id", data.userId),
       contents: data.contents
     };
 
@@ -187,10 +162,12 @@ io.on("connection", function (socket) {
 
     /**
      * userId : user who requested
+     * partyCode : partyCode
      * playerCounts : room player counts
      * isTeam : weather team match bool
      */
 
+    // requested user
     let user = users.getById(data.userId);
 
     // check user status
@@ -198,37 +175,6 @@ io.on("connection", function (socket) {
 
     console.log("request for finding match from <%s>", data.userId);
 
-    // make new room in room list
-    let room = rooms.create(data.playerCounts, data.isTeam, [user]);
-    console.log("<%s> room created for: <%s>", room.id, user.id);
-
-    // enroll user in the room
-    user.playingRoomId = room.id;
-    user.status = "play";
-
-    // send success massage
-    let partyList = [];
-    for (let party of room.stage.parties) {
-      partyList.push({
-        id : party.id,
-        userId : party.userId,
-        territoryColor : party.territoryColor,
-        deckCode : party.deckCode,
-        isAi : party.false
-      });
-    }
-
-    room.broadcast("find match", {
-      success: true,
-      roomData: {
-        id: room.id,
-        seed: room.seed,
-        players: room.players,
-        parties: partyList
-      }
-    });
-
-/* 
     // distinguish user's target game category
     let currentQueue;
     if (data.isTeam) {
@@ -246,6 +192,7 @@ io.on("connection", function (socket) {
 
     // change user status
     user.status = "wait";
+    user.partyCode = data.partyCode;
 
     if (currentQueue.length === data.playerCounts) {
       
@@ -269,11 +216,12 @@ io.on("connection", function (socket) {
         success: true,
         roomData: {
           id: room.id,
+          seed: room.seed,
           players: room.connectedPlayers()
         }
       });
 
-    } */
+    }
 
   });
 
@@ -285,33 +233,138 @@ io.on("connection", function (socket) {
      * isTeam : weather team match bool
      */
 
+    // requested user
+    let user = users.getById(data.userId);
+
     // check user status
-    if (users.getById(data.userId).status != "wait") return;
+    if (user.status != "wait") return;
 
     console.log("cancel request for finding match from <%s>", data.userId);
 
     // change user status
-    users.getById(data.userId).status = "ready";
+    user.status = "ready";
 
     // delete user from queue
     let keys = Object.keys(waitingQueues);
 
     for (let i = 0; i < keys.length; i++) {
-      let index = waitingQueues[keys[i]].indexOf(users.getById(data.userId));
+      let index = waitingQueues[keys[i]].indexOf(user(data.userId));
       if (index != -1) {
         waitingQueues[keys[i]].splice(index, 1);
       }
     }
 
-    socket.emit("cancel finding", {
-      success: true
-    });
+    // socket.emit("cancel finding", {
+    //   success: true
+    // });
     
+  });
+
+  socket.on("end game", (data) => {
+
+    /**
+     * userId: userId,
+     * userRank: userRank,
+     * rank: {userId, rank} list,
+     * stats: kills, relics, score, lives
+     */
+
+    // requested user
+    let user = users.getById(data.userId);
+
+    // check user status
+    if (user.status != "play") return;
+
+    user.status = "ready";
+    user.playingRoomId = null;
+
+    console.log("end game request from <%s>", data.userId);
+
+    let connnectionData = {
+      socket: socket,
+      db: Connection.db,
+      users: users,
+      data: data
+    };
+
+    let room = rooms.getById(user.playingRoomId);
+
+    room.deleteUser(user.id);
+
+    let rewards = [];
+    let totalCoin = 0;
+    let characterCode = Math.floor(Math.random() * 22);
+
+    rewards.push({
+      type: "character",
+      characterData: characterCode
+    });
+
+    for (let i = 0; i < 2; i++) {
+      let coinIncrement = Math.floor(Math.random() * 5) * 10 + 50;
+      rewards.push({ type: "coin", amount: coinIncrement });
+      totalCoin += coinIncrement;
+    };
+
+    rewards = shuffle(rewards);
+
+    let coinQueryString = "`coin` + " + totalCoin;
+    let cardQueryString = "CONCAT(`card`, `" + characterCode + "`)";
+
+    QueryHandler.updateQuery(connnectionData, {
+      table: "user_gamedata", 
+      contents: {
+        coin: mysql.raw(coinQueryString),
+        card: mysql.raw(cardQueryString)
+      }, 
+      condition: conditionQueryString("user_id", user.id)
+    });
+
+    QueryHandler.updateQuery(connnectionData, {
+      table: "user_gamestat", 
+      contents: room.playerCounts == 4 ?
+      {
+        total_games_played: mysql.raw("`total_games_played` + 1"),
+        solo_four_games_played : mysql.raw("`solo_four_games_played` + 1")
+      } : {
+        total_games_played: mysql.raw("`total_games_played` + 1"),
+        solo_two_games_played : mysql.raw("`solo_four_games_played` + 1")
+      }, 
+      condition: conditionQueryString("user_id", user.id)
+    });
+
+    socket.emit("end game", {
+      rewards: rewards
+    });
+
+    if (room.players.length == 0) {
+
+      QueryHandler.insertQuery(connnectionData, {
+        table: "gamelog", 
+        contents: {
+          room_id: room.id,
+          rank: data.rank.join(),
+          seed: room.seed
+          }
+        }
+      );
+  
+      console.log("Room <%s> deleted",room.id);
+      rooms.roomList.splice(rooms.roomList.indexOf(room), 1);
+      rooms.roomIdMap.delete(room.id);
+    }
+
   });
 
   socket.on("disconnect", () => {
 
     console.log("socket <%s> disconnected", socket.id);
+
+    let connnectionData = {
+      socket: socket,
+      db: Connection.db,
+      users: users
+      };
 
     // disconnected user
     let user = users.getBySocketId(socket.id);
@@ -351,6 +404,23 @@ io.on("connection", function (socket) {
         }
       });
 
+      room.deleteUser(user.id);
+
+      if (room.players.length == 0) {
+
+        QueryHandler.insertQuery(connnectionData, {
+          table: "gamelog", 
+          contents: {
+            room_id: room.id,
+            seed: room.seed
+          }
+        });
+    
+        console.log("Room <%s> deleted",room.id);
+        rooms.roomList.splice(rooms.roomList.indexOf(room), 1);
+        rooms.roomIdMap.delete(room.id);
+      }
+
     }
 
     users.remove(user.id);
@@ -375,24 +445,29 @@ io.on("connection", function (socket) {
 
   });
 
-  // change direction
-
-  socket.on("change direction", (data) => {
+  // make path
+  socket.on("make path", (data) => {
 
     /**
-     * roomId: roomId
-     * pratyId: partyId
-     * direction: direction
-     * coordinate: coordinate
+     * userId: userId,
+     * path: path
      */
 
-   for (let party of rooms.getById(data.roomId).stage.parties) {
-      if (party.id == data.pratyId) {
-        party.scheduleDirection(data.direction, data.coordinate);
-      }
-    }
-     
-    
+    // requested user
+    let user = users.getById(data.userId);
+
+    // check user status
+    if (user.status != "play") return;
+
+    let room = rooms.getById(user.playingRoomId);
+
+    // send success massage
+    room.broadcast("make path", {
+      success: true,
+      userId: user.id,
+      path: data.path
+    }, user.id);
+
   });
 
 });

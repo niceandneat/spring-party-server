@@ -50,9 +50,9 @@ CREATE TABLE `user_gamestat` (
 CREATE TABLE `gamelog` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `room_id` VARCHAR(50) NOT NULL UNIQUE,
-  `rank` VARCHAR(200) NOT NULL,
-  `seed` VARCHAR(50) NOT NULL,
-  `reward` VARCHAR(50) NOT NULL,
+  `rank` VARCHAR(200) DEFAULT "0",
+  `seed` VARCHAR(50) DEFAULT "0",
+  `reward` VARCHAR(50) DEFAULT "0",
   `start_time` DATETIME,
   `end_time` DATETIME,
   PRIMARY KEY (`id`)
