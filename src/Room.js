@@ -63,11 +63,15 @@ export default class Room {
 
   }
 
-  deleteUser(userId) {
+  originPlayers() {
+    return this.players.concat(this.leftPlayers);
+  }
+
+  deletePlayer(userId) {
     for (let i in this.players) {
       if (this.players[i].id == userId) {
-        this.players.splice(i, 1);
         this.leftPlayers.push(this.players[i]);
+        this.players.splice(i, 1);
         break;
       }
     }

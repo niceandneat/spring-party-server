@@ -263,9 +263,8 @@ io.on("connection", function (socket) {
 
     /**
      * userId: userId,
-     * userRank: userRank,
-     * rank: {userId, rank} list,
-     * stats: kills, relics, score, lives
+     * rank: [userId] sort by rank
+     * stats: {time, kills, lives, relics, score}
      */
 
     // requested user
@@ -285,9 +284,11 @@ io.on("connection", function (socket) {
 
     let room = rooms.getById(user.playingRoomId);
 
-    room.deleteUser(user.id);
+    room.deletePlayer(user.id);
 
+    // rewards response
     let rewards = [];
+
     let totalCoin = 0;
     let characterCode = Math.floor(Math.random() * 22);
 
@@ -304,6 +305,24 @@ io.on("connection", function (socket) {
 
     rewards = shuffle(rewards);
 
+    // party record response
+    let players = [];
+    for (let player of room.originPlayers()) {
+      let record = {};
+      record.partyId = player.partyId;
+      record.userId = player.id;
+      record.territoryColor = player.territoryColor;
+      record.partyCode = player.partyCode;
+      players.push(record);
+    }
+
+    // end game response
+    socket.emit("end game", {
+      rewards: rewards,
+      players: players
+    });
+
+    // change db
     let coinQueryString = "`coin` + " + totalCoin;
     let cardQueryString = "CONCAT(`card`, '," + characterCode + "')";
 
@@ -329,10 +348,7 @@ io.on("connection", function (socket) {
       condition: conditionQueryString("user_id", user.id)
     });
 
-    socket.emit("end game", {
-      rewards: rewards
-    });
-
+    // when room in empty
     if (room.players.length == 0) {
 
       QueryHandler.insertQuery(connnectionData, {
@@ -350,6 +366,7 @@ io.on("connection", function (socket) {
       rooms.roomIdMap.delete(room.id);
     }
 
+    // change user status
     user.status = "ready";
     user.playingRoomId = null;
 
@@ -403,7 +420,7 @@ io.on("connection", function (socket) {
         }
       });
 
-      room.deleteUser(user.id);
+      room.deletePlayer(user.id);
 
       if (room.players.length == 0) {
 
@@ -423,24 +440,6 @@ io.on("connection", function (socket) {
     }
 
     users.remove(user.id);
-
-/*     user.setTimer(RECONNECT_TIMEOUT, () => {
-
-      if (room) {
-
-        room.broadcast("user disconnected", {
-          userId: user.id,
-          roomData: {
-            id: room.id,
-            players: room.connectedPlayers()
-          }
-        });
-
-      }
-
-      users.remove(user.id);
-
-    }); */
 
   });
 
