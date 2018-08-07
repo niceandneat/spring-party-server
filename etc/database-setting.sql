@@ -12,6 +12,13 @@ CREATE TABLE `user` (
   PRIMARY KEY (`id`)
 );
 
+INSERT INTO `user` (
+`user_id`, `password`, `first_login`, `last_login`
+) 
+VALUES (
+"test2", "test2", NOW(), NOW()
+);
+
 --
 -- Table structure for table `user_gamedata`
 --
@@ -28,6 +35,13 @@ CREATE TABLE `user_gamedata` (
   FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
+INSERT INTO `user_gamedata` (
+`user_id`, `card`, `party`
+) 
+VALUES (
+"test2", "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21", "1,2,3"
+);
+
 --
 -- Table structure for table `user_gamestat`
 --
@@ -41,6 +55,13 @@ CREATE TABLE `user_gamestat` (
   `team_four_games_played` INT DEFAULT 0,
   PRIMARY KEY (`id`),
   FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+INSERT INTO `user_gamestat` (
+`user_id`
+) 
+VALUES (
+"test2"
 );
 
 --

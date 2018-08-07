@@ -13,27 +13,13 @@ export default class Room {
     this.players = [];
     this.leftPlayers = [];
 
-    this._initialize();
+    this.idList = [1, 2, 3, 4];
   }
 
-  _initialize() {
-
-    let idList = [1, 2, 3, 4];
-
-    // Create player party info
-    for (let player of this.players) {
-
-      player.partyId = this._pickId(idList);
-      player.territoryColor = this._getColor(player.partyId);
-
-    }
-
-  }
-
-  _pickId(idList) {
-    let idx = Math.floor(Math.random() * idList.length);
-    let id = idList[idx];
-    idList.splice(idx, 1);
+  _pickId() {
+    let idx = Math.floor(Math.random() * this.idList.length);
+    let id = this.idList[idx];
+    this.idList.splice(idx, 1);
     return id;
   }
 
@@ -48,6 +34,13 @@ export default class Room {
       case 4:
         return 0xffa700;
     }
+  }
+
+  addPlayer(player) {
+    this.players.push(player);
+    player.partyId = this._pickId();
+    player.territoryColor = this._getColor(player.partyId);
+    player.playingRoomId = this.id;
   }
 
   broadcast(event, data, notMeId = false) {

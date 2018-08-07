@@ -193,7 +193,7 @@ io.on("connection", function (socket) {
     // change user status
     user.status = "wait";
     user.partyCode = data.partyCode;
-
+    
     if (currentQueue.length === data.playerCounts) {
       
       // make new room in room list
@@ -205,8 +205,7 @@ io.on("connection", function (socket) {
 
       for (let i = 0; i < queueLength; i++) {
         let player = currentQueue.shift();
-        room.players.push(player);
-        player.playingRoomId = room.id;
+        room.addPlayer(player);
         player.status = "play";
         console.log(player.id);
       }
@@ -275,9 +274,6 @@ io.on("connection", function (socket) {
     // check user status
     if (user.status != "play") return;
 
-    user.status = "ready";
-    user.playingRoomId = null;
-
     console.log("end game request from <%s>", data.userId);
 
     let connnectionData = {
@@ -309,7 +305,7 @@ io.on("connection", function (socket) {
     rewards = shuffle(rewards);
 
     let coinQueryString = "`coin` + " + totalCoin;
-    let cardQueryString = "CONCAT(`card`, `" + characterCode + "`)";
+    let cardQueryString = "CONCAT(`card`, '," + characterCode + "')";
 
     QueryHandler.updateQuery(connnectionData, {
       table: "user_gamedata", 
@@ -353,6 +349,9 @@ io.on("connection", function (socket) {
       rooms.roomList.splice(rooms.roomList.indexOf(room), 1);
       rooms.roomIdMap.delete(room.id);
     }
+
+    user.status = "ready";
+    user.playingRoomId = null;
 
   });
 
@@ -456,6 +455,9 @@ io.on("connection", function (socket) {
     // requested user
     let user = users.getById(data.userId);
 
+    console.log("receive_");
+    console.log({userId: data.userId, path: data.path});
+
     // check user status
     if (user.status != "play") return;
 
@@ -467,6 +469,9 @@ io.on("connection", function (socket) {
       userId: user.id,
       path: data.path
     }, user.id);
+
+    console.log("send_");
+    console.log({userId: data.userId, path: data.path});
 
   });
 
